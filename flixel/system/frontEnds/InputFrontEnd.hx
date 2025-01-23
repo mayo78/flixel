@@ -26,7 +26,9 @@ class InputFrontEnd
 	 * @param	Input 	The input to add
 	 * @return	The input
 	 */
+	#if FLX_GENERIC
 	@:generic
+	#end
 	public function add<T:IFlxInputManager>(Input:T):T
 	{
 		// Don't add repeats
@@ -48,7 +50,9 @@ class InputFrontEnd
 	 * @param	Input	The input to remove
 	 * @return	Bool indicating whether it was removed or not
 	 */
+	#if FLX_GENERIC
 	@:generic
+	#end
 	public function remove<T:IFlxInputManager>(Input:T):Bool
 	{
 		var i:Int = 0;
@@ -71,7 +75,9 @@ class InputFrontEnd
 	 * @param	New 	The new input to put in its place
 	 * @return	If successful returns New. Otherwise returns null.
 	 */
+	#if FLX_GENERIC
 	@:generic
+	#end
 	public function replace<T:IFlxInputManager>(Old:T, New:T):T
 	{
 		var i:Int = 0;

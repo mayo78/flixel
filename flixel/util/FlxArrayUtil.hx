@@ -60,7 +60,9 @@ class FlxArrayUtil
 	 * @param 	index	The index of the element to be removed from the array
 	 * @return	The array
 	 */
+	#if FLX_GENERIC
 	@:generic
+	#end
 	public static inline function swapAndPop<T>(array:Array<T>, index:Int):Array<T>
 	{
 		array[index] = array[array.length - 1]; // swap element to remove and last element

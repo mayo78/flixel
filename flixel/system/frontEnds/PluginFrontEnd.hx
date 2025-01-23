@@ -29,7 +29,9 @@ class PluginFrontEnd
 	 * @param	Plugin	Any object that extends FlxPlugin. Useful for managers and other things. See flixel.plugin for some examples!
 	 * @return	The same FlxPlugin-based plugin you passed in.
 	 */
+	#if FLX_GENERIC
 	@:generic
+	#end
 	public function add<T:FlxBasic>(Plugin:T):T
 	{
 		// Don't add repeats
