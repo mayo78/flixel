@@ -855,53 +855,49 @@ class FlxTween implements IFlxDestroyable
 	public static function parseFieldString(input:String):Array<OneOfTwo<String, Int>>
 	{
 		var result:Array<OneOfTwo<String, Int>> = [];
-		var current = "";
+		var start = 0;
 		var inBracket = false;
 		var lastWasDot = false;
+		var len = input.length;
 
-		for (i in 0...input.length)
+		for (i in 0...len)
 		{
-			var c = input.charCodeAt(i);
+			var c = StringTools.unsafeCodeAt(input, i);
 
-			if (c == ".".code)
+			switch (c)
 			{
-				if (!inBracket && (current.length > 0 || lastWasDot))
-				{
-					result.push(current);
-					current = "";
-				}
-				lastWasDot = true;
-			}
-			else if (!inBracket && c == "[".code)
-			{
-				if (current.length > 0)
-				{
-					result.push(current);
-					current = "";
-				}
-				else if (lastWasDot)
-					result.push("");
-				inBracket = true;
-				lastWasDot = false;
-			}
-			else if (inBracket && c == "]".code)
-			{
-				if (current.length > 0)
-				{
-					result.push(Std.parseInt(current));
-					current = "";
-				}
-				inBracket = false;
-			}
-			else
-			{
-				current += String.fromCharCode(c);
-				lastWasDot = false;
+				case ".".code:
+					if (!inBracket && (i > start || lastWasDot))
+					{
+						result.push(input.substr(start, i - start));
+					}
+					start = i + 1;
+					lastWasDot = true;
+				case '['.code if (!inBracket):
+					if (i > start)
+					{
+						result.push(input.substr(start, i - start));
+					}
+					else if (lastWasDot)
+						result.push("");
+					start = i + 1;
+					inBracket = true;
+					lastWasDot = false;
+				case ']'.code if (inBracket):
+					if (i > start)
+					{
+						result.push(Std.parseInt(input.substr(start, i - start)));
+					}
+					start = i + 1;
+					inBracket = false;
 			}
 		}
 
-		if (current.length > 0 || lastWasDot)
+		if (start < len || lastWasDot)
+		{
+			var current = input.substr(start);
 			result.push(inBracket ? Std.parseInt(current) : current);
+		}
 
 		if (result.length == 0)
 			result.push("");
