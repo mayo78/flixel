@@ -182,7 +182,7 @@ class BitmapFrontEnd
 		var graphic = _cache.get(key);
 		if (graphic != null)
 			graphic.mustDestroy = false;
-		return _cache.get(key);
+		return graphic;
 	}
 
 	/**
