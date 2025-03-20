@@ -160,7 +160,9 @@ class FlxArrayUtil
 	 * Flattens 2D arrays into 1D arrays.
 	 * Example: `[[1, 2], [3, 2], [1, 1]]` -> `[1, 2, 3, 2, 1, 1]`
 	 */
+	#if FLX_GENERIC
 	@:generic
+	#end
 	public static function flatten2DArray<T>(array:Array<Array<T>>):Array<T>
 	{
 		var result = [];
@@ -217,7 +219,11 @@ class FlxArrayUtil
 
 	public static inline function contains<T>(array:Array<T>, element:T):Bool
 	{
+		#if (haxe >= "4.0.5")
+		return array.contains(element);
+		#else
 		return array.indexOf(element) != -1;
+		#end
 	}
 
 	/**

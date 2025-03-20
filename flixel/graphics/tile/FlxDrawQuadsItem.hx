@@ -57,22 +57,6 @@ class FlxDrawQuadsItem extends FlxDrawBaseItem<FlxDrawQuadsItem>
 	{
 		var rect = frame.frame;
 
-		/*var len = rects.length;
-			rects.length += 4;
-			rects[len++] = rect.x;
-			rects[len++] = rect.y;
-			rects[len++] = rect.width;
-			rects[len++] = rect.height;
-
-			len = transforms.length;
-			transforms.length += 6;
-			transforms[len++] = matrix.a;
-			transforms[len++] = matrix.b;
-			transforms[len++] = matrix.c;
-			transforms[len++] = matrix.d;
-			transforms[len++] = matrix.tx;
-			transforms[len++] = matrix.ty; */
-
 		rects.push(rect.x);
 		rects.push(rect.y);
 		rects.push(rect.width);
@@ -86,10 +70,8 @@ class FlxDrawQuadsItem extends FlxDrawBaseItem<FlxDrawQuadsItem>
 		transforms.push(matrix.ty);
 
 		var alphaMultiplier = transform != null ? transform.alphaMultiplier : 1.0;
-		var len = alphas.length;
-		alphas.resize(len + VERTICES_PER_QUAD);
 		for (i in 0...VERTICES_PER_QUAD)
-			alphas[len++] = alphaMultiplier;
+			alphas.push(alphaMultiplier);
 
 		if (colored || hasColorOffsets)
 		{
@@ -99,36 +81,31 @@ class FlxDrawQuadsItem extends FlxDrawBaseItem<FlxDrawQuadsItem>
 			if (colorOffsets == null)
 				colorOffsets = [];
 
-			var lenm = colorMultipliers.length;
-			colorMultipliers.resize(lenm + 4 * VERTICES_PER_QUAD);
-			var leno = colorOffsets.length;
-			colorOffsets.resize(leno + 4 * VERTICES_PER_QUAD);
-
 			for (i in 0...VERTICES_PER_QUAD)
 			{
 				if (transform != null)
 				{
-					colorMultipliers[lenm++] = transform.redMultiplier;
-					colorMultipliers[lenm++] = transform.greenMultiplier;
-					colorMultipliers[lenm++] = transform.blueMultiplier;
-					colorMultipliers[lenm++] = 1;
+					colorMultipliers.push(transform.redMultiplier);
+					colorMultipliers.push(transform.greenMultiplier);
+					colorMultipliers.push(transform.blueMultiplier);
+					colorMultipliers.push(1);
 
-					colorOffsets[leno++] = transform.redOffset;
-					colorOffsets[leno++] = transform.greenOffset;
-					colorOffsets[leno++] = transform.blueOffset;
-					colorOffsets[leno++] = transform.alphaOffset;
+					colorOffsets.push(transform.redOffset);
+					colorOffsets.push(transform.greenOffset);
+					colorOffsets.push(transform.blueOffset);
+					colorOffsets.push(transform.alphaOffset);
 				}
 				else
 				{
-					colorMultipliers[lenm++] = 1;
-					colorMultipliers[lenm++] = 1;
-					colorMultipliers[lenm++] = 1;
-					colorMultipliers[lenm++] = 1;
+					colorMultipliers.push(1);
+					colorMultipliers.push(1);
+					colorMultipliers.push(1);
+					colorMultipliers.push(1);
 
-					colorOffsets[leno++] = 0;
-					colorOffsets[leno++] = 0;
-					colorOffsets[leno++] = 0;
-					colorOffsets[leno++] = 0;
+					colorOffsets.push(0);
+					colorOffsets.push(0);
+					colorOffsets.push(0);
+					colorOffsets.push(0);
 				}
 			}
 		}
