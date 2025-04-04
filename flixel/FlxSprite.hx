@@ -302,6 +302,17 @@ class FlxSprite extends FlxObject
 	public var clipRect(default, set):FlxRect;
 
 	/**
+	 * Clipping rectangle for this sprite.
+	 * Changing the rect's properties directly doesn't have any effect,
+	 * reassign the property to update it (`sprite.rawClipRect = sprite.rawClipRect;`).
+	 * Set to `null` to discard graphic frame clipping.
+	 * Differences between `clipRect` and `rawClipRect`:
+	 * - `clipRect` is rounded to the nearest pixel.
+	 * - `rawClipRect` is not rounded at all.
+	**/
+	public var rawClipRect(get, set):FlxRect;
+
+	/**
 	 * GLSL shader for this sprite. Avoid changing it frequently as this is a costly operation.
 	 * @since 4.1.0
 	 */
@@ -1635,6 +1646,23 @@ class FlxSprite extends FlxObject
 			frame = frames.frames[animation.frameIndex];
 
 		return rect;
+	}
+
+	@:noCompletion
+	function set_rawClipRect(rect:FlxRect):FlxRect
+	{
+		@:bypassAccessor clipRect = rect;
+
+		if (frames != null)
+			frame = frames.frames[animation.frameIndex];
+
+		return rect;
+	}
+
+	@:noCompletion
+	inline function get_rawClipRect():FlxRect
+	{
+		return clipRect;
 	}
 
 	/**
