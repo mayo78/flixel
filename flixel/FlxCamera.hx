@@ -1964,6 +1964,8 @@ class FlxCamera extends FlxBasic
 		scaleX = X;
 		scaleY = Y;
 
+		FlxG.cameras.preCameraResized.dispatch(this);
+
 		totalScaleX = scaleX * FlxG.scaleMode.scale.x;
 		totalScaleY = scaleY * FlxG.scaleMode.scale.y;
 
@@ -2066,6 +2068,9 @@ class FlxCamera extends FlxBasic
 		if (width != Value && Value > 0)
 		{
 			width = Value;
+
+			FlxG.cameras.preCameraResized.dispatch(this);
+
 			calcMarginX();
 			updateFlashOffset();
 			updateScrollRect();
@@ -2081,6 +2086,9 @@ class FlxCamera extends FlxBasic
 		if (height != Value && Value > 0)
 		{
 			height = Value;
+
+			FlxG.cameras.preCameraResized.dispatch(this);
+
 			calcMarginY();
 			updateFlashOffset();
 			updateScrollRect();
