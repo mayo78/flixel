@@ -122,6 +122,11 @@ class FlxCamera extends FlxBasic
 	public var followLerp:Float = 1.0;
 
 	/**
+	 * Whether or not the camera is allowed to follow it's `target`.
+	 */
+	public var followEnabled:Bool = true;
+
+	/**
 	 * You can assign a "dead zone" to the camera in order to better control its movement.
 	 * The camera will always keep the focus object inside the dead zone, unless it is bumping up against
 	 * the camera bounds. The `deadzone`'s coordinates are measured from the camera's upper left corner in game pixels.
@@ -754,6 +759,9 @@ class FlxCamera extends FlxBasic
 	public function drawPixels(?frame:FlxFrame, ?pixels:BitmapData, matrix:FlxMatrix, ?transform:ColorTransform, ?blend:BlendMode, ?smoothing:Bool = false,
 			?shader:FlxShader):Void
 	{
+		if (smoothing && !FlxG.allowAntialiasing)
+			smoothing = false;
+
 		if (FlxG.renderBlit)
 		{
 			_helperMatrix.copyFrom(matrix);
@@ -761,12 +769,12 @@ class FlxCamera extends FlxBasic
 			if (_useBlitMatrix)
 			{
 				_helperMatrix.concat(_blitMatrix);
-				buffer.draw(pixels, _helperMatrix, null, null, null, (smoothing || antialiasing));
+				buffer.draw(pixels, _helperMatrix, null, null, null, (smoothing || (antialiasing && FlxG.allowAntialiasing)));
 			}
 			else
 			{
 				_helperMatrix.translate(-viewMarginLeft, -viewMarginTop);
-				buffer.draw(pixels, _helperMatrix, null, blend, null, (smoothing || antialiasing));
+				buffer.draw(pixels, _helperMatrix, null, blend, null, (smoothing || (antialiasing && FlxG.allowAntialiasing)));
 			}
 		}
 		else
@@ -786,6 +794,9 @@ class FlxCamera extends FlxBasic
 	public function copyPixels(?frame:FlxFrame, ?pixels:BitmapData, ?sourceRect:Rectangle, destPoint:Point, ?transform:ColorTransform, ?blend:BlendMode,
 			?smoothing:Bool = false, ?shader:FlxShader):Void
 	{
+		if (smoothing && !FlxG.allowAntialiasing)
+			smoothing = false;
+
 		if (FlxG.renderBlit)
 		{
 			if (pixels != null)
@@ -795,7 +806,7 @@ class FlxCamera extends FlxBasic
 					_helperMatrix.identity();
 					_helperMatrix.translate(destPoint.x, destPoint.y);
 					_helperMatrix.concat(_blitMatrix);
-					buffer.draw(pixels, _helperMatrix, null, null, null, (smoothing || antialiasing));
+					buffer.draw(pixels, _helperMatrix, null, null, null, (smoothing || (antialiasing && FlxG.allowAntialiasing)));
 				}
 				else
 				{
@@ -830,6 +841,9 @@ class FlxCamera extends FlxBasic
 	public function drawTriangles(graphic:FlxGraphic, vertices:DrawData<Float>, indices:DrawData<Int>, uvtData:DrawData<Float>, ?colors:DrawData<Int>,
 			?position:FlxPoint, ?blend:BlendMode, repeat:Bool = false, smoothing:Bool = false, ?transform:ColorTransform, ?shader:FlxShader):Void
 	{
+		if (smoothing && !FlxG.allowAntialiasing)
+			smoothing = false;
+		
 		if (FlxG.renderBlit)
 		{
 			if (position == null)
@@ -1129,7 +1143,7 @@ class FlxCamera extends FlxBasic
 	override public function update(elapsed:Float):Void
 	{
 		// follow the target, if there is one
-		if (target != null)
+		if (followEnabled && target != null)
 		{
 			updateFollow();
 			updateLerp(elapsed);
@@ -1268,7 +1282,7 @@ class FlxCamera extends FlxBasic
 		else if (followLerp > 0.0)
 		{
 			// Adjust lerp based on the current frame rate so lerp is less framerate dependant
-			final adjustedLerp = 1.0 - Math.pow(1.0 - followLerp, elapsed * 60);
+			final adjustedLerp = Math.min(1.0 - Math.pow(1.0 - followLerp, elapsed * 60), 1.0);
 			
 			scroll.x += (_scrollTarget.x - scroll.x) * adjustedLerp;
 			scroll.y += (_scrollTarget.y - scroll.y) * adjustedLerp;
@@ -2008,7 +2022,7 @@ class FlxCamera extends FlxBasic
 		antialiasing = Antialiasing;
 		if (FlxG.renderBlit)
 		{
-			_flashBitmap.smoothing = Antialiasing;
+			_flashBitmap.smoothing = Antialiasing && FlxG.allowAntialiasing;
 		}
 		return Antialiasing;
 	}

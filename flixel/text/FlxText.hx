@@ -664,24 +664,17 @@ class FlxText extends FlxSprite
 		updateDefaultFormat();
 		return LetterSpacing;
 	}
-	
-	override function setColorTransform(redMultiplier = 1.0, greenMultiplier = 1.0, blueMultiplier = 1.0, alphaMultiplier = 1.0, redOffset = 0.0, greenOffset = 0.0, blueOffset = 0.0, alphaOffset = 0.0)
-	{
-		super.setColorTransform(1, 1, 1, 1, redOffset, greenOffset, blueOffset, alphaOffset);
-		_defaultFormat.color = FlxColor.fromRGBFloat(redMultiplier, greenMultiplier, blueMultiplier, 0);
-		updateDefaultFormat();
-	}
 
-	override function set_color(value:FlxColor):Int
+	override function set_color(Color:FlxColor):Int
 	{
-		if (_defaultFormat.color == value.rgb)
+		if (_defaultFormat.color == Color.to24Bit())
 		{
-			return value;
+			return Color;
 		}
-		_defaultFormat.color = value.rgb;
-		color = value;
+		_defaultFormat.color = Color.to24Bit();
+		color = Color;
 		updateDefaultFormat();
-		return value;
+		return Color;
 	}
 
 	inline function get_font():String
@@ -698,9 +691,10 @@ class FlxText extends FlxSprite
 			var newFontName:String = Font;
 			if (FlxG.assets.exists(Font, FONT))
 			{
-				newFontName = FlxG.assets.getFontUnsafe(Font).fontName;
+				var fontName:String = FlxG.assets.getFontUnsafe(Font).fontName;
+				if(fontName != null && fontName.length != 0 && Assets.exists(Font, FONT))
+					newFontName = fontName;
 			}
-
 			_defaultFormat.font = newFontName;
 		}
 		else
@@ -862,7 +856,19 @@ class FlxText extends FlxSprite
 
 	override function updateColorTransform():Void
 	{
-		colorTransform.alphaMultiplier = alpha;
+		if (colorTransform == null)
+			colorTransform = new ColorTransform();
+
+		if (alpha != 1)
+		{
+			colorTransform.alphaMultiplier = alpha;
+			useColorTransform = true;
+		}
+		else
+		{
+			colorTransform.alphaMultiplier = 1;
+			useColorTransform = false;
+		}
 
 		dirty = true;
 	}
@@ -1227,7 +1233,7 @@ class FlxText extends FlxSprite
 	{
 		// Apply the default format
 		copyTextFormat(_defaultFormat, FormatAdjusted, false);
-		FormatAdjusted.color = UseBorderColor ? borderColor.rgb : _defaultFormat.color;
+		FormatAdjusted.color = UseBorderColor ? borderColor.to24Bit() : _defaultFormat.color;
 		textField.setTextFormat(FormatAdjusted);
 
 		// Apply other formats
@@ -1242,7 +1248,7 @@ class FlxText extends FlxSprite
 			{
 				var textFormat:TextFormat = formatRange.format.format;
 				copyTextFormat(textFormat, FormatAdjusted, false);
-				FormatAdjusted.color = UseBorderColor ? formatRange.format.borderColor.rgb : textFormat.color;
+				FormatAdjusted.color = UseBorderColor ? formatRange.format.borderColor.to24Bit() : textFormat.color;
 			}
 
 			textField.setTextFormat(FormatAdjusted, formatRange.range.start, Std.int(Math.min(formatRange.range.end, textField.text.length)));

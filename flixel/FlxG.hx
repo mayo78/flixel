@@ -100,7 +100,7 @@ class FlxG
 	 * The HaxeFlixel version, in semantic versioning syntax. Use `Std.string()`
 	 * on it to get a `String` formatted like this: `"HaxeFlixel MAJOR.MINOR.PATCH-COMMIT_SHA"`.
 	 */
-	public static var VERSION(default, null):FlxVersion = new FlxVersion(6, 1, 0);
+	public static var VERSION(default, null):FlxVersion = new FlxVersion(6, 0, 0);
 
 	/**
 	 * Internal tracker for game object.
@@ -145,6 +145,16 @@ class FlxG
 
 	public static var renderBlit(default, null):Bool;
 	public static var renderTile(default, null):Bool;
+
+	/**
+	 * Whether or not antialiasing is allowed.
+	 * 
+	 * If this is disabled, sprites or cameras will not have
+	 * any antialiasing, regardless of their individual antialiasing values.
+	 * 
+	 * This could come in handy for an antialiasing option in your game!
+	 */
+	public static var allowAntialiasing:Bool = true;
 
 	/**
 	 * Represents the amount of time in seconds that passed since last frame.
@@ -517,9 +527,14 @@ class FlxG
 	 */
 	public static inline function openURL(url:String, target = "_blank"):Void
 	{
-		// if the url does not already start with a protocol, add it.
-		if (!~/^.\w+?:\/*/.match(url))
-			url = "https://" + url;
+		// Ensure you can't open protocols such as steam://, file://, etc
+	    var protocol:Array<String> = url.split("://");
+	    if (protocol.length == 1)
+			url = 'https://${url}';
+
+	    else if (protocol[0] != 'http' && protocol[0] != 'https')
+			throw "openURL can only open http and https links.";
+
 		Lib.getURL(new URLRequest(url), target);
 	}
 

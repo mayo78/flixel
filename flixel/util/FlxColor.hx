@@ -1,6 +1,5 @@
 package flixel.util;
 
-import flixel.tweens.FlxEase;
 import flixel.math.FlxMath;
 import flixel.system.macros.FlxMacroUtil;
 
@@ -259,13 +258,16 @@ abstract FlxColor(Int) from Int from UInt to Int to UInt
 	 * @param Ease An optional easing function, such as those provided in FlxEase
 	 * @return An array of colors of length Steps, shifting from Color1 to Color2
 	 */
-	public static function gradient(Color1:FlxColor, Color2:FlxColor, Steps:Int, ?Ease:EaseFunction):Array<FlxColor>
+	public static function gradient(Color1:FlxColor, Color2:FlxColor, Steps:Int, ?Ease:Float->Float):Array<FlxColor>
 	{
 		var output = new Array<FlxColor>();
 
 		if (Ease == null)
 		{
-			Ease = FlxEase.linear;
+			Ease = function(t:Float):Float
+			{
+				return t;
+			}
 		}
 
 		for (step in 0...Steps)
@@ -364,7 +366,6 @@ abstract FlxColor(Int) from Int from UInt to Int to UInt
 	 *
 	 * @return A 24 bit version of this color
 	 */
-	@:deprecated("to24Bit() is deprecated, use rgb field, instead.")
 	public inline function to24Bit():FlxColor
 	{
 		return this & 0xffffff;

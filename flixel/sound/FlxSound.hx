@@ -90,6 +90,11 @@ class FlxSound extends FlxBasic
 	 * Set volume to a value between 0 and 1 to change how this sound is.
 	 */
 	public var volume(get, set):Float;
+
+	/**
+	 * Whether or not the sound is muted.
+	 */
+	public var muted(get, set):Bool;
 	
 	#if FLX_PITCH
 	/**
@@ -109,6 +114,11 @@ class FlxSound extends FlxBasic
 	 * @since 4.2.0
 	 */
 	public var length(get, never):Float;
+
+	/**
+	 * The latency of the sound in milliseconds.
+	 */
+	public var latency(get, never):Float;
 	
 	/**
 	 * The sound group this sound belongs to, can only be in one group.
@@ -165,6 +175,11 @@ class FlxSound extends FlxBasic
 	 * Internal tracker for volume.
 	 */
 	var _volume:Float;
+
+	/**
+	 * Internal tracker for whether the sound is muted or not.
+	 */
+	var _muted:Bool;
 	
 	/**
 	 * Internal tracker for sound channel position.
@@ -231,6 +246,7 @@ class FlxSound extends FlxBasic
 		_paused = false;
 		_volume = 1.0;
 		_volumeAdjust = 1.0;
+		_muted = false;
 		looped = false;
 		loopTime = 0.0;
 		endTime = 0.0;
@@ -273,6 +289,9 @@ class FlxSound extends FlxBasic
 			_sound.removeEventListener(Event.ID3, gotID3);
 			_sound = null;
 		}
+
+		if (fadeTween != null)
+			fadeTween.cancel();
 		
 		onComplete = null;
 		
@@ -572,7 +591,7 @@ class FlxSound extends FlxBasic
 	 */
 	public inline function getActualVolume():Float
 	{
-		return _volume * _volumeAdjust;
+		return _volume * _volumeAdjust * (_muted ? 0 : 1);
 	}
 	
 	/**
@@ -602,7 +621,7 @@ class FlxSound extends FlxBasic
 	
 	function calcTransformVolume():Float
 	{
-		final volume = (group != null ? group.getVolume() : 1.0) * _volume * _volumeAdjust;
+		final volume = (group != null ? group.volume : 1.0) * _volume * _volumeAdjust * (_muted ? 0 : 1);
 		
 		#if FLX_SOUND_SYSTEM
 		if (FlxG.sound.muted)
@@ -750,6 +769,18 @@ class FlxSound extends FlxBasic
 		updateTransform();
 		return Volume;
 	}
+
+	inline function get_muted():Bool
+	{
+		return _muted;
+	}
+
+	function set_muted(Muted:Bool):Bool
+	{
+		_muted = Muted;
+		updateTransform();
+		return Muted;
+	}
 	
 	#if FLX_PITCH
 	inline function get_pitch():Float
@@ -806,6 +837,23 @@ class FlxSound extends FlxBasic
 	inline function get_length():Float
 	{
 		return _length;
+	}
+
+	function get_latency():Float
+	{
+		if (_channel != null)
+		{
+			#if (openfl < "9.3.2")
+			@:privateAccess
+			if (_channel.__source != null)
+				return _channel.__source.latency;
+			#else
+			@:privateAccess
+			if (_channel.__audioSource != null)
+				return _channel.__audioSource.latency;
+			#end
+		}
+		return 0;
 	}
 	
 	override public function toString():String

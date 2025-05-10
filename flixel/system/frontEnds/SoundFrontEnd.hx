@@ -66,6 +66,12 @@ class SoundFrontEnd
 	 * volumeUp-, volumeDown- or muteKeys is pressed.
 	 */
 	public var soundTrayEnabled:Bool = true;
+
+	/**
+	 * Whether or not the volume should be able to be
+	 * changed by the player.
+	 */
+	public var acceptInputs:Bool = true;
 	
 	#if FLX_SOUND_TRAY
 	/**
@@ -385,13 +391,13 @@ class SoundFrontEnd
 	 * actually used to play the sound. To reverse this operation, use `reverseSoundCurve`. This
 	 * field is `dynamic` and can be overwritten. 
 	 */
-	public dynamic function applySoundCurve(volume:Float)
+	public dynamic function applySoundCurve(volume:Float):Float
 	{
-		return volume;
-		
 		// Example of linear to logarithmic sound curve:
 		// final clampedVolume = Math.max(0, Math.min(1, volume));
 		// return Math.exp(Math.log(0.001) * (1 - clampedVolume));
+		
+		return volume;
 	}
 	
 	/**
@@ -399,15 +405,15 @@ class SoundFrontEnd
 	 * Used to reverse the operation of `applySoundCurve`. This field is `dynamic` and can be
 	 * set to a custom function.
 	 */
-	public dynamic function reverseSoundCurve(curvedVolume:Float)
+	public dynamic function reverseSoundCurve(curvedVolume:Float):Float
 	{
-		return curvedVolume;
-		
 		// Example of logarithmic to linear sound curve:
 		// final clampedVolume = Math.max(minValue, Math.min(1, x));
 		// return 1 - (Math.log(clampedVolume) / Math.log(0.001));
+		
+		return curvedVolume;
 	}
-	
+
 	function new()
 	{
 		#if FLX_SAVE
@@ -428,7 +434,7 @@ class SoundFrontEnd
 			list.update(elapsed);
 
 		#if FLX_KEYBOARD
-		if (!FlxInputText.globalManager.isTyping)
+		if (!FlxInputText.globalManager.isTyping && acceptInputs)
 		{
 			if (FlxG.keys.anyJustReleased(muteKeys))
 				toggleMuted();

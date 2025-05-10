@@ -208,10 +208,7 @@ class FlxSprite extends FlxObject
 	public var bakedRotationAngle(default, null):Float = 0;
 
 	/**
-	 * Set alpha to a number between `0` and `1` to change the opacity of the sprite. Calling
-	 * `setColorTransform` will also change this value
-	 * 
-	 * **NOTE:** This value is automatically clamped to 0 <= a <= 1
+	 * Set alpha to a number between `0` and `1` to change the opacity of the sprite.
 	 @see https://snippets.haxeflixel.com/sprites/alpha/
 	 */
 	public var alpha(default, set):Float = 1.0;
@@ -247,9 +244,20 @@ class FlxSprite extends FlxObject
 	public var offset(default, null):FlxPoint;
 
 	/**
+	 * The position of the sprite's graphic relative to the frame, scaling and angles. For example, `offset.x = 10;` with
+	 * a scale of 2 will move the sprite 20 pixels to the left.
+	 */
+	public var frameOffset(default, null):FlxPoint;
+
+	/**
+	 * (Nullable) Custom angle to be applied to `frameOffset`
+	 */
+	public var frameOffsetAngle:Null<Float> = null;
+
+	/**
 	 * Change the size of your sprite's graphic.
 	 * NOTE: The hitbox is not automatically adjusted, use `updateHitbox()` for that.
-	 * **WARNING:** With `FlxG.renderBlit`, scaling sprites decreases rendering performance by a factor of about x10!
+	 * WARNING: With `FlxG.renderBlit`, scaling sprites decreases rendering performance by a factor of about x10!
 	 * @see https://snippets.haxeflixel.com/sprites/scale/
 	 */
 	public var scale(default, null):FlxPoint;
@@ -258,24 +266,30 @@ class FlxSprite extends FlxObject
 	 * Blending modes, just like Photoshop or whatever, e.g. "multiply", "screen", etc.
 	 */
 	public var blend(default, set):BlendMode;
-	
+
 	/**
-	 * Multiplies this sprite's image by the given red, green and blue components, alpha is ignored.
-	 * To change the opacity use `alpha`. Calling `setColorTransform` will also change this value.
+	 * Tints the whole sprite to a color (`0xRRGGBB` format) - similar to OpenGL vertex colors. You can use
+	 * `0xAARRGGBB` colors, but the alpha value will simply be ignored. To change the opacity use `alpha`.
 	 * @see https://snippets.haxeflixel.com/sprites/color/
 	 */
-	public var color(default, set):FlxColor = FlxColor.WHITE;
-	
-	/**
-	 * The color effects of this sprite, changes to `color` or `alplha` will be reflected here
-	 */
-	public var colorTransform(default, null) = new ColorTransform();
+	public var color(default, set):FlxColor = 0xffffff;
+
+	public var colorTransform(default, null):ColorTransform;
 
 	/**
 	 * Whether or not to use a `ColorTransform` set via `setColorTransform()`.
 	 */
-	@:deprecated("useColorTransform is deprecated, use hasColorTransform(), instead")// 6.1.0
 	public var useColorTransform(default, null):Bool = false;
+
+	public var onDraw(default, set):FlxSprite->Void;
+
+	public function set_onDraw(drawFunc:FlxSprite->Void):FlxSprite->Void
+	{
+		__drawOverrided = drawFunc != null;
+		return onDraw = drawFunc;
+	}
+
+	@:noCompletion public var __drawOverrided:Bool = false; // Avoid null checks
 
 	/**
 	 * Clipping rectangle for this sprite.
@@ -288,7 +302,7 @@ class FlxSprite extends FlxObject
 	 * GLSL shader for this sprite. Avoid changing it frequently as this is a costly operation.
 	 * @since 4.1.0
 	 */
-	public var shader:FlxShader;
+	public var shader(default, set):FlxShader;
 
 	/**
 	 * The actual frame used for sprite rendering
@@ -350,6 +364,12 @@ class FlxSprite extends FlxObject
 	var _scaledOrigin:FlxPoint;
 
 	/**
+	 *  Helper variable
+	 */
+	@:noCompletion
+	var _scaledFrameOffset:FlxPoint;
+
+	/**
 	 * These vars are being used for rendering in some of `FlxSprite` subclasses (`FlxTileblock`, `FlxBar`,
 	 * and `FlxBitmapText`) and for checks if the sprite is in camera's view.
 	 */
@@ -397,11 +417,14 @@ class FlxSprite extends FlxObject
 		_flashRect2 = new Rectangle();
 		_flashPointZero = new Point();
 		offset = FlxPoint.get();
+		frameOffset = FlxPoint.get();
 		origin = FlxPoint.get();
 		scale = FlxPoint.get(1, 1);
 		_halfSize = FlxPoint.get();
 		_matrix = new FlxMatrix();
+		colorTransform = new ColorTransform();
 		_scaledOrigin = new FlxPoint();
+		_scaledFrameOffset = new FlxPoint();
 	}
 
 	/**
@@ -421,10 +444,12 @@ class FlxSprite extends FlxObject
 		animation = FlxDestroyUtil.destroy(animation);
 
 		offset = FlxDestroyUtil.put(offset);
+		frameOffset = FlxDestroyUtil.put(frameOffset);
 		origin = FlxDestroyUtil.put(origin);
 		scale = FlxDestroyUtil.put(scale);
 		_halfSize = FlxDestroyUtil.put(_halfSize);
 		_scaledOrigin = FlxDestroyUtil.put(_scaledOrigin);
+		_scaledFrameOffset = FlxDestroyUtil.put(_scaledFrameOffset);
 		_lastClipRect = FlxDestroyUtil.put(_lastClipRect);
 
 		framePixels = FlxDestroyUtil.dispose(framePixels);
@@ -434,6 +459,7 @@ class FlxSprite extends FlxObject
 		_flashRect2 = null;
 		_flashPointZero = null;
 		_matrix = null;
+		colorTransform = null;
 		blend = null;
 
 		frames = null;
@@ -441,6 +467,7 @@ class FlxSprite extends FlxObject
 		_frame = FlxDestroyUtil.destroy(_frame);
 		_frameGraphic = FlxDestroyUtil.destroy(_frameGraphic);
 
+		@:bypassAccessor clipRect = FlxDestroyUtil.put(clipRect);
 		shader = null;
 	}
 
@@ -661,6 +688,43 @@ class FlxSprite extends FlxObject
 	}
 
 	/**
+	 * This function creates a solid colored rectangular image dynamically.
+	 *
+	 * HaxeFlixel's graphic caching system keeps track of loaded image data.
+	 * When you make an identical copy of a previously used image, by default
+	 * HaxeFlixel copies the previous reference onto the pixels field instead
+	 * of creating another copy of the image data, to save memory.
+	 *
+	 * NOTE: This method updates hitbox size and frame size.
+	 *
+	 * @param   Width    The width of the sprite you want to generate.
+	 * @param   Height   The height of the sprite you want to generate.
+	 * @param   Color    Specifies the color of the generated block (ARGB format).
+	 * @param   Unique   Whether the graphic should be a unique instance in the graphics cache. Default is `false`.
+	 *                   Set this to `true` if you want to modify the `pixels` field without changing the
+	 *                   `pixels` of other sprites with the same `BitmapData`.
+	 * @param   Key      An optional `String` key to identify this graphic in the cache.
+	 *                   If `null`, the key is determined by `Width`, `Height` and `Color`.
+	 *                   If `Unique` is `true` and a graphic with this `Key` already exists,
+	 *                   it is used as a prefix to find a new unique name like `"Key3"`.
+	 * @return  This `FlxSprite` instance (nice for chaining stuff together, if you're into that).
+	 */
+	public function makeSolid(width:Float, height:Float, color = FlxColor.WHITE, unique = false, ?key:String):FlxSprite
+	{
+		var graph:FlxGraphic = FlxG.bitmap.create(1, 1, color, unique, key);
+		frames = graph.imageFrame;
+		
+		#if FLX_TRACK_GRAPHICS
+		graph.trackingInfo = 'makeGraphic($ID, ${color.toHexString()})';
+		#end
+		
+		scale.set(width, height);
+		updateHitbox();
+		
+		return this;
+	}
+
+	/**
 	 * Called whenever a new graphic is loaded for this sprite (after `loadGraphic()`, `makeGraphic()` etc).
 	 */
 	public function graphicLoaded():Void {}
@@ -806,13 +870,20 @@ class FlxSprite extends FlxObject
 	 */
 	override public function draw():Void
 	{
+		if (__drawOverrided)
+		{
+			__drawOverrided = false;
+			onDraw(this);
+			__drawOverrided = true;
+			return;
+		}
 		checkClipRect();
-		
+
 		checkEmptyFrame();
-		
+
 		if (alpha == 0 || _frame.type == FlxFrameType.EMPTY)
 			return;
-		
+
 		if (dirty) // rarely
 			calcFrame(useFramePixels);
 		
@@ -820,12 +891,12 @@ class FlxSprite extends FlxObject
 		{
 			if (!camera.visible || !camera.exists || !isOnScreen(camera))
 				continue;
-			
+
 			if (isSimpleRender(camera))
 				drawSimple(camera);
 			else
 				drawComplex(camera);
-			
+
 			#if FLX_DEBUG
 			FlxBasic.visibleCount++;
 			#end
@@ -878,6 +949,18 @@ class FlxSprite extends FlxObject
 		final matrix = this._matrix; // TODO: Just use local?
 		frame.prepareMatrix(matrix, FlxFrameAngle.ANGLE_0, checkFlipX(), checkFlipY());
 		matrix.translate(-origin.x, -origin.y);
+
+		var _animOffset:FlxPoint = animation.curAnim?.offset ?? FlxPoint.weak();
+		if (frameOffsetAngle != null && frameOffsetAngle != angle)
+		{
+			var angleOff = (-angle + frameOffsetAngle) * FlxAngle.TO_RAD;
+			matrix.rotate(-angleOff);
+			matrix.translate(-(frameOffset.x + _animOffset.x), -(frameOffset.y + _animOffset.y));
+			matrix.rotate(angleOff);
+		}
+		else
+			matrix.translate(-(frameOffset.x + _animOffset.x), -(frameOffset.y + _animOffset.y));
+
 		matrix.scale(scale.x, scale.y);
 		
 		if (bakedRotationAngle <= 0)
@@ -897,8 +980,9 @@ class FlxSprite extends FlxObject
 			matrix.tx = Math.floor(matrix.tx);
 			matrix.ty = Math.floor(matrix.ty);
 		}
-		
+
 		camera.drawPixels(frame, framePixels, matrix, colorTransform, blend, antialiasing, shader);
+		_animOffset.putWeak();
 	}
 
 	/**
@@ -1013,7 +1097,7 @@ class FlxSprite extends FlxObject
 			dirty = true;
 		return positions;
 	}
-	
+
 	/**
 	 * Sets the sprite's color transformation with control over color offsets.
 	 * With `FlxG.renderTile`, offsets are only supported on OpenFL Next version 3.6.0 or higher.
@@ -1027,48 +1111,33 @@ class FlxSprite extends FlxObject
 	 * @param   blueOffset        The offset for the blue color channel value, in the range from `-255` to `255`.
 	 * @param   alphaOffset       The offset for alpha transparency channel value, in the range from `-255` to `255`.
 	 */
-	@:haxe.warning("-WDeprecated")
 	public function setColorTransform(redMultiplier = 1.0, greenMultiplier = 1.0, blueMultiplier = 1.0, alphaMultiplier = 1.0,
 			redOffset = 0.0, greenOffset = 0.0, blueOffset = 0.0, alphaOffset = 0.0):Void
 	{
-		alphaMultiplier = FlxMath.bound(alphaMultiplier, 0, 1);
-		@:bypassAccessor color = FlxColor.fromRGBFloat(redMultiplier, greenMultiplier, blueMultiplier, 1.0);
-		@:bypassAccessor alpha = alphaMultiplier;
-		
+		color = FlxColor.fromRGBFloat(redMultiplier, greenMultiplier, blueMultiplier).to24Bit();
+		alpha = alphaMultiplier;
+
 		colorTransform.setMultipliers(redMultiplier, greenMultiplier, blueMultiplier, alphaMultiplier);
 		colorTransform.setOffsets(redOffset, greenOffset, blueOffset, alphaOffset);
-		useColorTransform = hasColorTransformRaw();
-		
+
+		useColorTransform = alpha != 1 || color != 0xffffff || colorTransform.hasRGBOffsets();
 		dirty = true;
 	}
 	
-	@:haxe.warning("-WDeprecated")
 	function updateColorTransform():Void
 	{
-		colorTransform.setMultipliers(color.redFloat, color.greenFloat, color.blueFloat, alpha);
-		useColorTransform = hasColorTransformRaw();
-		
+		if (colorTransform == null)
+			return;
+
+		useColorTransform = alpha != 1 || color != 0xffffff;
+		if (useColorTransform)
+			colorTransform.setMultipliers(color.redFloat, color.greenFloat, color.blueFloat, alpha);
+		else
+			colorTransform.setMultipliers(1, 1, 1, 1);
+
 		dirty = true;
 	}
-	
-	/**
-	 * Whether this sprite has a color transform, menaing any of the following: less than full
-	 * `alpha`, a `color` tint, or a `colorTransform` whos values are not the default.
-	 */
-	@:haxe.warning("-WDeprecated")
-	public function hasColorTransform()
-	{
-		return useColorTransform || hasColorTransformRaw();
-	}
-	
-	/**
-	 * Helper for the non-deprecated component of `hasColorTransform`
-	 */
-	function hasColorTransformRaw()
-	{
-		return alpha != 1 || color.rgb != 0xffffff || colorTransform.hasRGBAOffsets();
-	}
-	
+
 	/**
 	 * Checks to see if a point in 2D world space overlaps this `FlxSprite` object's
 	 * current displayed pixels. This check is ALWAYS made in screen space, and
@@ -1229,7 +1298,7 @@ class FlxSprite extends FlxObject
 	{
 		if (_frame == null || !dirty)
 			return framePixels;
-		
+
 		// don't try to regenerate frame pixels if _frame already uses it as source of graphics
 		// if you'll try then it will clear framePixels and you won't see anything
 		if (FlxG.renderTile && _frameGraphic != null)
@@ -1237,10 +1306,10 @@ class FlxSprite extends FlxObject
 			dirty = false;
 			return framePixels;
 		}
-		
-		final doFlipX = checkFlipX();
-		final doFlipY = checkFlipY();
-		
+
+		var doFlipX:Bool = checkFlipX();
+		var doFlipY:Bool = checkFlipY();
+
 		if (!doFlipX && !doFlipY && _frame.type == FlxFrameType.REGULAR)
 		{
 			framePixels = _frame.paint(framePixels, _flashPointZero, false, true);
@@ -1249,12 +1318,12 @@ class FlxSprite extends FlxObject
 		{
 			framePixels = _frame.paintRotatedAndFlipped(framePixels, _flashPointZero, FlxFrameAngle.ANGLE_0, doFlipX, doFlipY, false, true);
 		}
-		
-		if (FlxG.renderBlit && hasColorTransform())
+
+		if (useColorTransform)
 		{
 			framePixels.colorTransform(_flashRect, colorTransform);
 		}
-		
+
 		if (FlxG.renderTile && useFramePixels)
 		{
 			// recreate _frame for native target, so it will use modified framePixels
@@ -1262,7 +1331,7 @@ class FlxSprite extends FlxObject
 			_frameGraphic = FlxGraphic.fromBitmapData(framePixels, false, null, false);
 			_frame = _frameGraphic.imageFrame.frame.copyTo(_frame);
 		}
-		
+
 		dirty = false;
 		return framePixels;
 	}
@@ -1317,6 +1386,9 @@ class FlxSprite extends FlxObject
 	 */
 	override public function isOnScreen(?camera:FlxCamera):Bool
 	{
+		if (forceIsOnScreen)
+			return true;
+		
 		if (camera == null)
 			camera = getDefaultCamera();
 		
@@ -1384,18 +1456,25 @@ class FlxSprite extends FlxObject
 		if (camera == null)
 			camera = getDefaultCamera();
 		
+		var _animOffset:FlxPoint = animation.curAnim?.offset ?? FlxPoint.weak();
 		newRect.setPosition(x, y);
+		
 		if (pixelPerfectPosition)
 			newRect.floor();
-		_scaledOrigin.set(origin.x * scale.x, origin.y * scale.y);
+
+		_scaledOrigin.set(origin.x * Math.abs(scale.x), origin.y * Math.abs(scale.y));
+		_scaledFrameOffset.set((frameOffset.x + _animOffset.x) * Math.abs(scale.x), (frameOffset.y + _animOffset.y) * Math.abs(scale.y));
+
 		newRect.x += -Std.int(camera.scroll.x * scrollFactor.x) - offset.x + origin.x - _scaledOrigin.x;
 		newRect.y += -Std.int(camera.scroll.y * scrollFactor.y) - offset.y + origin.y - _scaledOrigin.y;
+
 		if (isPixelPerfectRender(camera))
 			newRect.floor();
+
 		newRect.setSize(frameWidth * Math.abs(scale.x), frameHeight * Math.abs(scale.y));
-		return newRect.getRotatedBounds(angle, _scaledOrigin, newRect);
+		return newRect.getRotatedBounds(angle, _scaledOrigin, newRect, _scaledFrameOffset);
 	}
-	
+		
 	/**
 	 * Set how a sprite flips when facing in a particular direction.
 	 *
@@ -1524,24 +1603,25 @@ class FlxSprite extends FlxObject
 	}
 
 	@:noCompletion
-	function set_alpha(value:Float):Float
+	function set_alpha(Alpha:Float):Float
 	{
-		value = FlxMath.bound(value, 0, 1);
-		if (alpha == value)
-			return value;
-		
-		alpha = value;
+		if (alpha == Alpha)
+		{
+			return Alpha;
+		}
+		alpha = FlxMath.bound(Alpha, 0, 1);
 		updateColorTransform();
 		return alpha;
 	}
 
 	@:noCompletion
-	function set_color(value:FlxColor):Int
+	function set_color(Color:FlxColor):Int
 	{
-		if (color == value)
-			return value;
-		
-		color = value;
+		if (color == Color)
+		{
+			return Color;
+		}
+		color = Color;
 		updateColorTransform();
 		return color;
 	}
@@ -1577,6 +1657,12 @@ class FlxSprite extends FlxObject
 		return blend = Value;
 	}
 
+	@:noCompletion
+	function set_shader(Value:FlxShader):FlxShader
+	{
+		return shader = Value;
+	}
+
 	/**
 	 * Internal function for setting graphic property for this object.
 	 * Changes the graphic's `useCount` for better memory tracking.
@@ -1603,10 +1689,7 @@ class FlxSprite extends FlxObject
 	@:noCompletion
 	function set_clipRect(rect:FlxRect):FlxRect
 	{
-		if (rect != null)
-			clipRect = rect.round();
-		else
-			clipRect = null;
+		clipRect = rect;
 
 		return rect;
 	}
