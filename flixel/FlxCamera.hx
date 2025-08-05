@@ -134,7 +134,7 @@ class FlxCamera extends FlxBasic
 	 * Values are bounded between `0.0` and `FlxG.updateFrameRate / 60` for consistency across framerates.
 	 * The maximum value means no camera easing. A value of `0` means the camera does not move.
 	 */
-	public var followLerp(default, set):Float = 1;
+	public var followLerp:Float = 1;
 
 	/**
 	 * Whenever target following is enabled. Defaults to `true`.
@@ -258,6 +258,11 @@ class FlxCamera extends FlxBasic
 	 * their center, meaning as you zoom in, the view is cut off on all sides.
 	 */
 	public var zoom(default, set):Float;
+
+	/**
+	 * Zoom Multiplier
+	 */
+	public var zoomMultiplier:Float;
 
 	/**
 	 * The margin cut off on the left and right by the camera zooming in (or out), in world space.
@@ -1027,10 +1032,10 @@ class FlxCamera extends FlxBasic
 
 			if (_useBlitMatrix)
 			{
-				rect.x *= zoom;
-				rect.y *= zoom;
-				rect.width *= zoom;
-				rect.height *= zoom;
+				rect.x *= scaleX;
+				rect.y *= scaleY;
+				rect.width *= scaleX;
+				rect.height *= scaleY;
 			}
 		}
 
@@ -1049,7 +1054,7 @@ class FlxCamera extends FlxBasic
 			point.subtract(viewMarginLeft, viewMarginTop);
 
 			if (_useBlitMatrix)
-				point.scale(zoom);
+				point.scale(scaleX, scaleY);
 		}
 
 		return point;
@@ -1063,7 +1068,7 @@ class FlxCamera extends FlxBasic
 	inline function transformVector(vector:FlxPoint):FlxPoint
 	{
 		if (FlxG.renderBlit && _useBlitMatrix)
-			vector.scale(zoom);
+			vector.scale(scaleX, scaleY);
 
 		return vector;
 	}
@@ -1139,7 +1144,7 @@ class FlxCamera extends FlxBasic
 
 		set_color(FlxColor.WHITE);
 
-		initialZoom = (Zoom == 0) ? defaultZoom : Zoom;
+		zoomMultiplier = initialZoom = (Zoom == 0) ? defaultZoom : Zoom;
 		zoom = Zoom; // sets the scale of flash sprite, which in turn loads flashOffset values
 
 		updateScrollRect();
@@ -1297,10 +1302,10 @@ class FlxCamera extends FlxBasic
 	 */
 	public function updateScroll():Void
 	{
-		var minX:Null<Float> = minScrollX == null ? null : minScrollX - (zoom - 1) * width / (2 * zoom);
-		var maxX:Null<Float> = maxScrollX == null ? null : maxScrollX + (zoom - 1) * width / (2 * zoom);
-		var minY:Null<Float> = minScrollY == null ? null : minScrollY - (zoom - 1) * height / (2 * zoom);
-		var maxY:Null<Float> = maxScrollY == null ? null : maxScrollY + (zoom - 1) * height / (2 * zoom);
+		var minX:Null<Float> = minScrollX == null ? null : minScrollX - (scaleX - 1) * width / (2 * scaleX);
+		var maxX:Null<Float> = maxScrollX == null ? null : maxScrollX + (scaleX - 1) * width / (2 * scaleX);
+		var minY:Null<Float> = minScrollY == null ? null : minScrollY - (scaleY - 1) * height / (2 * scaleY);
+		var maxY:Null<Float> = maxScrollY == null ? null : maxScrollY + (scaleY - 1) * height / (2 * scaleY);
 
 		// Make sure we didn't go outside the camera's bounds
 		scroll.x = FlxMath.bound(scroll.x, minX, (maxX != null) ? maxX - width : null);
@@ -1463,11 +1468,11 @@ class FlxCamera extends FlxBasic
 			{
 				if (_fxShakeAxes.x)
 				{
-					flashSprite.x += lastShakeX = FlxG.random.float(-_fxShakeIntensity * width, _fxShakeIntensity * width) * zoom * FlxG.scaleMode.scale.x;
+					flashSprite.x += lastShakeX = FlxG.random.float(-_fxShakeIntensity * width, _fxShakeIntensity * width) * scaleX * FlxG.scaleMode.scale.x;
 				}
 				if (_fxShakeAxes.y)
 				{
-					flashSprite.y += lastShakeY = FlxG.random.float(-_fxShakeIntensity * height, _fxShakeIntensity * height) * zoom * FlxG.scaleMode.scale.y;
+					flashSprite.y += lastShakeY = FlxG.random.float(-_fxShakeIntensity * height, _fxShakeIntensity * height) * scaleY * FlxG.scaleMode.scale.y;
 				}
 			}
 		}
@@ -2058,10 +2063,7 @@ class FlxCamera extends FlxBasic
 		return contained;
 	}
 
-	function set_followLerp(Value:Float):Float
-	{
-		return followLerp = FlxMath.bound(Value, 0, 60 / FlxG.updateFramerate);
-	}
+	public inline function getActualZoom():Float return zoom * zoomMultiplier;
 
 	function set_width(Value:Int):Int
 	{
@@ -2102,8 +2104,15 @@ class FlxCamera extends FlxBasic
 	function set_zoom(Zoom:Float):Float
 	{
 		zoom = (Zoom == 0) ? defaultZoom : Zoom;
-		setScale(zoom, zoom);
+		setScale(getActualZoom(), getActualZoom());
 		return zoom;
+	}
+
+	function set_zoomMultiplier(value:Float)
+	{
+		zoomMultiplier = value;
+		setScale(getActualZoom(), getActualZoom());
+		return value;
 	}
 
 	function set_alpha(Alpha:Float):Float
