@@ -256,7 +256,7 @@ class FlxCamera extends FlxBasic
 	 * `viewX`, `viewY`, `viewWidth`, `viewHeight` and many others. Cameras always zoom in to
 	 * their center, meaning as you zoom in, the view is cut off on all sides.
 	 */
-	public var zoomMultiplier:Float;
+	public var zoomMultiplier:Float = 1.0;
 	public var zoom(default, set):Float;
 
 	/**
@@ -635,8 +635,7 @@ class FlxCamera extends FlxBasic
 	public function addShader(shader:FlxShader)
 	{
 		var filter:ShaderFilter = null;
-		if (_filters == null)
-			_filters = [];
+		if (_filters == null) _filters = [];
 		_filters.push(filter = new ShaderFilter(shader));
 		return filter;
 	}
@@ -648,15 +647,11 @@ class FlxCamera extends FlxBasic
 	 */
 	public function removeShader(shader:FlxShader):Bool
 	{
-		if (_filters == null)
-			_filters = [];
-		for (f in _filters)
-		{
-			if (f is ShaderFilter)
-			{
+		if (_filters == null) _filters = [];
+		for (f in _filters) {
+			if (f is ShaderFilter) {
 				var sf = cast(f, ShaderFilter);
-				if (sf.shader == shader)
-				{
+				if (sf.shader == shader) {
 					_filters.remove(f);
 					return true;
 				}
@@ -1106,17 +1101,15 @@ class FlxCamera extends FlxBasic
 		this.x = x;
 		this.y = y;
 
-		if (zoom == 0)
-			zoom = defaultZoom;
-		
+		if (zoom == 0) zoom = defaultZoom;
+
 		// Use the game dimensions if width / height are <= 0
-		if (width <= 0)
-			width = Math.ceil(FlxG.width / zoom);
-		if (height <= 0)
-			height = Math.ceil(FlxG.height / zoom);
-		
+		if (width <= 0) width = FlxG.width;
+		if (height <= 0) height = FlxG.height;
+
 		this.width = width;
 		this.height = height;
+
 		_flashRect = new Rectangle(0, 0, width, height);
 
 		flashSprite.addChild(_scrollRect);
