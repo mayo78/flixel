@@ -5,7 +5,8 @@ import openfl.Lib;
 import openfl.events.TouchEvent;
 import openfl.ui.Multitouch;
 import openfl.ui.MultitouchInputMode;
-
+import flixel.input.FlxFlick;
+import flixel.math.FlxPoint;
 /**
  * @author Zaphod
  */
@@ -20,6 +21,30 @@ class FlxTouchManager implements IFlxInputManager
 	 * All active touches including just created, moving and just released.
 	 */
 	public var list:Array<FlxTouch>;
+
+	/**
+	 * The FlxFlick class responsible for managing flicks.
+	 */
+	#if FLX_POINTER_INPUT
+	public var flickManager:FlxFlick = new FlxFlick();
+	#end
+
+	/**
+	 * Inverts movement checks for the X axis.
+	 * On by default.
+	 */
+	public var invertX:Bool = true;
+
+	/**
+	 * Inverts movement checks for the Y axis.
+	 * On by default.
+	 */
+	public var invertY:Bool = true;
+
+	/**
+	 * The threshold to surpass for a movement check to be returned as true.
+	 */
+	public var swipeThreshold:FlxPoint = FlxPoint.get(100, 100);
 
 	/**
 	 * Storage for inactive touches (some sort of cache for them).
@@ -73,6 +98,9 @@ class FlxTouchManager implements IFlxInputManager
 		_inactiveTouches = null;
 
 		_touchesCache = null;
+		#if FLX_POINTER_INPUT
+		flickManager.destroy();
+		#end
 	}
 
 	/**
@@ -153,6 +181,9 @@ class FlxTouchManager implements IFlxInputManager
 		}
 
 		list.splice(0, list.length);
+		#if FLX_POINTER_INPUT
+		flickManager.destroy();
+		#end
 	}
 
 	@:allow(flixel.FlxG)
@@ -175,9 +206,10 @@ class FlxTouchManager implements IFlxInputManager
 	function handleTouchBegin(FlashEvent:TouchEvent):Void
 	{
 		var touch:FlxTouch = _touchesCache.get(FlashEvent.touchPointID);
+
 		if (touch != null)
 		{
-			touch.setXY(Std.int(FlashEvent.stageX), Std.int(FlashEvent.stageY));
+			touch.setXY(Std.int(FlashEvent.stageX), Std.int(FlashEvent.stageY), true);
 			touch.pressure = FlashEvent.pressure;
 		}
 		else
@@ -252,13 +284,15 @@ class FlxTouchManager implements IFlxInputManager
 	 */
 	function update():Void
 	{
+		#if FLX_POINTER_INPUT
+		flickManager.update(FlxG.elapsed);
+		#end
+
 		var i:Int = list.length - 1;
-		var touch:FlxTouch;
 
 		while (i >= 0)
 		{
-			touch = list[i];
-
+			var touch:FlxTouch = list[i];
 			// Touch ended at previous frame
 			if (touch.released && !touch.justReleased)
 			{

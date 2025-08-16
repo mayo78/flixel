@@ -688,10 +688,9 @@ class FlxGame extends Sprite
 		#end
 
 		updateElapsed();
-
-		FlxG.signals.preUpdate.dispatch();
-
 		updateInput();
+		
+		FlxG.signals.preUpdate.dispatch();
 
 		#if FLX_SOUND_SYSTEM
 		FlxG.sound.update(FlxG.elapsed);
@@ -725,11 +724,11 @@ class FlxGame extends Sprite
 	{
 		if (FlxG.fixedTimestep)
 		{
-			FlxG.elapsed = FlxG.timeScale * _stepSeconds; // fixed timestep
+			FlxG.elapsed = Math.max(FlxG.timeScale * _stepSeconds, 0); // fixed timestep
 		}
 		else
 		{
-			FlxG.elapsed = FlxG.timeScale * (_elapsedMS / 1000); // variable timestep
+			FlxG.elapsed = Math.max(FlxG.timeScale * (_elapsedMS / 1000), 0); // variable timestep
 
 			var max = FlxG.maxElapsed * FlxG.timeScale;
 			if (FlxG.elapsed > max)
