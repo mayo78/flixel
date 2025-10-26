@@ -1669,6 +1669,14 @@ class FlxCamera extends FlxBasic
 	}
 
 	/**
+	 * Whether or not to use optimized filling (for bg colors/camera flashes).
+	 */
+	public static var useOptimizedFill:Bool = false;
+
+	static final bgColorTransformDrawHelper = new ColorTransform();
+	static final matrixDrawHelper = new FlxMatrix();
+
+	/**
 	 * Fill the camera with the specified color.
 	 *
 	 * @param   Color        The color to fill with in `0xAARRGGBB` hex format.
@@ -1690,17 +1698,31 @@ class FlxCamera extends FlxBasic
 		}
 		else
 		{
-			if (FxAlpha == 0)
+			if (FxAlpha == 0 && (!filtersEnabled || filters == null || filters.length == 0))
 				return;
 
-			final targetGraphics = (graphics == null) ? canvas.graphics : graphics;
+			if (useOptimizedFill) {
+				final colorHelper:FlxColor = Std.int(FxAlpha * 0xFF) << 24 | Color.rgb;
+	
+				final matrix = matrixDrawHelper;
+				matrix.identity();
+				matrix.scale(0.1 * (viewWidth + 2), 0.1 * (viewHeight + 2));
+				matrix.translate(viewMarginLeft - 1, viewMarginTop - 1);
+	
+				final colorTransform = bgColorTransformDrawHelper.reset();
+				colorTransform.setMultipliers(colorHelper);
+				drawPixels(FlxG.bitmap.whitePixel, null, matrix, colorTransform, null, false);
+				render(); // manually call render since it literally just Won't otherwise
+			} else {
+				final targetGraphics = (graphics == null) ? canvas.graphics : graphics;
+				targetGraphics.overrideBlendMode(null);
+				targetGraphics.beginFill(Color, FxAlpha);
 
-			targetGraphics.overrideBlendMode(null);
-			targetGraphics.beginFill(Color, FxAlpha);
-			// i'm drawing rect with these parameters to avoid light lines at the top and left of the camera,
-			// which could appear while cameras fading
-			targetGraphics.drawRect(viewMarginLeft - 1, viewMarginTop - 1, viewWidth + 2, viewHeight + 2);
-			targetGraphics.endFill();
+				// i'm drawing rect with these parameters to avoid light lines at the top and left of the camera,
+				// which could appear while cameras fading
+				targetGraphics.drawRect(viewMarginLeft - 1, viewMarginTop - 1, viewWidth + 2, viewHeight + 2);
+				targetGraphics.endFill();
+			}
 		}
 	}
 
