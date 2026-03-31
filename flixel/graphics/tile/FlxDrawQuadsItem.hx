@@ -1,155 +1,79 @@
 package flixel.graphics.tile;
 
-import flixel.FlxCamera;
+import openfl.geom.ColorTransform;
+import openfl.Vector;
+
 import flixel.graphics.frames.FlxFrame;
 import flixel.graphics.tile.FlxDrawBaseItem.FlxDrawItemType;
 import flixel.math.FlxMatrix;
-import flixel.system.FlxAssets.FlxShader;
-import openfl.Vector;
-import openfl.display.ShaderParameter;
-import openfl.geom.ColorTransform;
+import flixel.FlxCamera;
 
-#if !flash
-@:access(openfl.display.BitmapData)
-@:access(openfl.display3D.textures.TextureBase)
-#end
-class FlxDrawQuadsItem extends FlxDrawBaseItem<FlxDrawQuadsItem>
-{
-	static inline var VERTICES_PER_QUAD = 4;
+class FlxDrawQuadsItem extends FlxDrawBaseItem<FlxDrawQuadsItem> {
+	public static inline final VERTICES_PER_QUAD = 4;
 
-	public var shader:FlxShader;
+	public var rects:Vector<Float> = new Vector<Float>();
+	public var transforms:Vector<Float> = new Vector<Float>();
 
-	var rects:Vector<Float>;
-	var transforms:Vector<Float>;
-	var alphas:Array<Float>;
-	var colorMultipliers:Array<Float>;
-	var colorOffsets:Array<Float>;
-
-	public function new()
-	{
+	public function new() {
 		super();
-		type = FlxDrawItemType.TILES;
-		rects = new Vector<Float>();
-		transforms = new Vector<Float>();
-		alphas = [];
+		type = TILES;
 	}
 
-	override public function reset():Void
-	{
-		super.reset();
+	override function reset() {
+		baseReset();
+
 		rects.length = 0;
 		transforms.length = 0;
-		alphas.splice(0, alphas.length);
-		if (colorMultipliers != null)
-			colorMultipliers.splice(0, colorMultipliers.length);
-		if (colorOffsets != null)
-			colorOffsets.splice(0, colorOffsets.length);
 	}
 
-	override public function dispose():Void
-	{
-		super.dispose();
+	override function dispose() {
+		baseDispose();
+
 		rects = null;
 		transforms = null;
-		alphas = null;
-		colorMultipliers = null;
-		colorOffsets = null;
 	}
 
-	override public function addQuad(frame:FlxFrame, matrix:FlxMatrix, ?transform:ColorTransform):Void
-	{
-		var rect = frame.frame;
-		rects.push(rect.x);
-		rects.push(rect.y);
-		rects.push(rect.width);
-		rects.push(rect.height);
+	override function addQuad(frame:FlxFrame, matrix:FlxMatrix, ?transform:ColorTransform) {
+		rects.push(frame.frame.x); rects.push(frame.frame.y);
+		rects.push(frame.frame.width); rects.push(frame.frame.height);
 
-		transforms.push(matrix.a);
-		transforms.push(matrix.b);
-		transforms.push(matrix.c);
-		transforms.push(matrix.d);
-		transforms.push(matrix.tx);
-		transforms.push(matrix.ty);
+		transforms.push(matrix.a); transforms.push(matrix.b); transforms.push(matrix.c);
+		transforms.push(matrix.d); transforms.push(matrix.tx); transforms.push(matrix.ty);
 
-		var alphaMultiplier = transform != null ? transform.alphaMultiplier : 1.0;
-		for (i in 0...VERTICES_PER_QUAD)
-			alphas.push(alphaMultiplier);
-
-		if (colored || hasColorOffsets)
-		{
-			if (colorMultipliers == null)
-				colorMultipliers = [];
-
-			if (colorOffsets == null)
-				colorOffsets = [];
-
-			for (i in 0...VERTICES_PER_QUAD)
-			{
-				if (transform != null)
-				{
-					colorMultipliers.push(transform.redMultiplier);
-					colorMultipliers.push(transform.greenMultiplier);
-					colorMultipliers.push(transform.blueMultiplier);
-
-					colorOffsets.push(transform.redOffset);
-					colorOffsets.push(transform.greenOffset);
-					colorOffsets.push(transform.blueOffset);
-					colorOffsets.push(transform.alphaOffset);
-				}
-				else
-				{
-					colorMultipliers.push(1);
-					colorMultipliers.push(1);
-					colorMultipliers.push(1);
-
-					colorOffsets.push(0);
-					colorOffsets.push(0);
-					colorOffsets.push(0);
-					colorOffsets.push(0);
-				}
-
-				colorMultipliers.push(1);
-			}
+		transform ??= FlxDrawBaseItem.colorIdentity;
+		var vertices = VERTICES_PER_QUAD;
+		while (vertices-- > 0) {
+			addColorTransform(transform);
 		}
 	}
 
-	#if !flash
-	override public function render(camera:FlxCamera):Void
-	{
-		if (rects.length == 0)
-			return;
+	public function addColoredQuad(frame:FlxFrame, matrix:FlxMatrix, ?transforms:Array<ColorTransform>) {
+		rects.push(frame.frame.x); rects.push(frame.frame.y);
+		rects.push(frame.frame.width); rects.push(frame.frame.height);
 
-		// TODO: catch this error when the dev actually messes up, not in the draw phase
-		if (shader == null && graphics.isDestroyed)
-			throw 'Attempted to render an invalid FlxDrawItem, did you destroy a cached sprite?';
+		this.transforms.push(matrix.a); this.transforms.push(matrix.b); this.transforms.push(matrix.c);
+		this.transforms.push(matrix.d); this.transforms.push(matrix.tx); this.transforms.push(matrix.ty);
 
-		final shader = shader != null ? shader : graphics.shader;
-		shader.bitmap.input = graphics.bitmap;
-		shader.bitmap.filter = (camera.antialiasing || antialiasing) ? LINEAR : NEAREST;
-		shader.alpha.value = alphas;
-
-		if (colored || hasColorOffsets)
-		{
-			shader.colorMultiplier.value = colorMultipliers;
-			shader.colorOffset.value = colorOffsets;
+		var i = 0, transformsLength = transforms?.length ?? 0;
+		while (i < VERTICES_PER_QUAD) {
+			addColorTransform(i < transformsLength ? transforms[i] : FlxDrawBaseItem.colorIdentity);
+			i++;
 		}
+	}
 
-		setParameterValue(shader.hasTransform, true);
-		setParameterValue(shader.hasColorTransform, colored || hasColorOffsets);
-		setParameterValue(shader.premultiplyAlpha, !shader.bitmap.input.readable && shader.bitmap.input.__texture != null && shader.bitmap.input.__texture.__premultiplyAlpha);
+	override function render(camera:FlxCamera):Void {
+		if (graphics.isDestroyed) throw 'Attempted to render an invalid FlxDrawQaudsItem, did you destroy a cached sprite?';
+		if (rects.length == 0) return;
 
-		camera.canvas.graphics.overrideBlendMode(blend);
-		camera.canvas.graphics.beginShaderFill(shader);
+		final shader = shader ?? graphics.shader;
+		bindToShader(camera, shader);
+
 		camera.canvas.graphics.drawQuads(rects, null, transforms);
 		camera.canvas.graphics.endFill();
-		super.render(camera);
+
+		FlxDrawBaseItem.drawCalls++;
 	}
 
-	inline function setParameterValue(parameter:ShaderParameter<Bool>, value:Bool):Void
-	{
-		if (parameter.value == null)
-			parameter.value = [];
-		parameter.value[0] = value;
-	}
-	#end
+	override function get_numVertices():Int return rects.length;
+	override function get_numTriangles():Int return rects.length >> 1;
 }

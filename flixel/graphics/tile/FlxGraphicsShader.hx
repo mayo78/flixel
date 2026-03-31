@@ -4,71 +4,105 @@ import openfl.display.GraphicsShader;
 
 class FlxGraphicsShader extends GraphicsShader
 {
-	@:glVertexHeader("
-		attribute float alpha;
-		attribute vec4 colorMultiplier;
-		attribute vec4 colorOffset;
-		uniform bool hasColorTransform;
-	", true)
-	@:glVertexBody("
-		openfl_Alphav = openfl_Alpha * alpha;
+	@:glVertexDontOverride
+	@:glFragmentDontOverride
+	@:glVertexHeader("attribute float openfl_Alpha;
+attribute vec4 openfl_ColorMultiplier;
+attribute vec4 openfl_ColorOffset;
+attribute vec4 openfl_Position;
+attribute vec2 openfl_TextureCoord;
 
-		if (hasColorTransform)
-		{
-			if (openfl_HasColorTransform)
-			{
-				openfl_ColorOffsetv = (openfl_ColorOffsetv * colorMultiplier) + (colorOffset / 255.0);
-				openfl_ColorMultiplierv *= colorMultiplier;
-			}
-			else
-			{
-				openfl_ColorOffsetv = colorOffset / 255.0;
-				openfl_ColorMultiplierv = colorMultiplier;
-			}
-		}
-	", true)
-	@:glFragmentHeader("
-		uniform bool hasTransform;  // TODO: Is this still needed? Apparently, yes!
-		uniform bool hasColorTransform;
-		uniform bool premultiplyAlpha;
-		vec4 flixel_texture2D(sampler2D bitmap, vec2 coord)
-		{
-			vec4 color = texture2D(bitmap, coord);
+varying float openfl_Alphav;
+varying vec4 openfl_ColorMultiplierv;
+varying vec4 openfl_ColorOffsetv;
+varying vec2 openfl_TextureCoordv;
 
-			if (premultiplyAlpha)
-				color.rgb *= color.a;
+uniform mat4 openfl_Matrix;
+uniform bool openfl_HasColorTransform;
+uniform vec2 openfl_TextureSize;
 
-			if (!(hasTransform || openfl_HasColorTransform))
-				return color;
+attribute float alpha;
+attribute vec4 colorMultiplier;
+attribute vec4 colorOffset;
+uniform bool hasColorTransform;")
 
-			if (color.a == 0.0)
-				return vec4(0.0, 0.0, 0.0, 0.0);
+	@:glVertexBody("openfl_TextureCoordv = openfl_TextureCoord;
 
-			if (openfl_HasColorTransform || hasColorTransform)
-			{
-				color = vec4 (color.rgb / color.a, color.a);
-				vec4 mult = vec4 (openfl_ColorMultiplierv.rgb, 1.0);
-				color = clamp (openfl_ColorOffsetv + (color * mult), 0.0, 1.0);
-
-				if (color.a == 0.0)
-					return vec4 (0.0, 0.0, 0.0, 0.0);
-
-				return vec4 (color.rgb * color.a * openfl_Alphav, color.a * openfl_Alphav);
-			}
-
-			return color * openfl_Alphav;
-		}
-	", true)
-	@:glFragmentSource("
-		#pragma header
-
-		void main(void)
-		{
-			gl_FragColor = flixel_texture2D(bitmap, openfl_TextureCoordv);
-		}
-	", true)
-	public function new()
+if (hasColorTransform)
+{
+	openfl_Alphav = openfl_Alpha * colorMultiplier.a;
+	if (openfl_HasColorTransform)
 	{
+		openfl_ColorOffsetv = (openfl_ColorOffset / 255.0 * colorMultiplier) + (colorOffset / 255.0);
+		openfl_ColorMultiplierv = openfl_ColorMultiplier * vec4(colorMultiplier.rgb, 1.0);
+	}
+	else
+	{
+		openfl_ColorOffsetv = colorOffset / 255.0;
+		openfl_ColorMultiplierv = vec4(colorMultiplier.rgb, 1.0);
+	}
+}
+else
+{
+	openfl_Alphav = openfl_Alpha * alpha;
+	if (openfl_HasColorTransform)
+	{
+		openfl_ColorOffsetv = (openfl_ColorOffset + colorOffset) / 255.0;
+		openfl_ColorMultiplierv = openfl_ColorMultiplier;
+	}
+	else
+	{
+		openfl_ColorOffsetv = colorOffset / 255.0;
+		openfl_ColorMultiplierv = vec4(1.0);
+	}
+}")
+
+	@:glVertexSource("#pragma header
+void main(void)
+{
+	#pragma body
+	gl_Position = openfl_Matrix * openfl_Position;
+}")
+
+	@:glFragmentHeader("varying float openfl_Alphav;
+varying vec4 openfl_ColorMultiplierv;
+varying vec4 openfl_ColorOffsetv;
+varying vec2 openfl_TextureCoordv;
+
+uniform bool openfl_HasColorTransform;
+uniform vec2 openfl_TextureSize;
+uniform sampler2D bitmap;
+uniform bool hasTransform;
+uniform bool hasColorTransform;
+uniform bool premultiplyAlpha;
+
+vec4 apply_flixel_transform(vec4 color)
+{
+	if (!hasTransform) return color;
+	else if (color.a <= 0.0 || openfl_Alphav == 0.0) return vec4(0.0);
+
+	// this is just solely for ASTC compressed textures.
+	// ...also in flixel_texture2D, it also converts to linear alpha anyway.
+	if (!premultiplyAlpha) color.rgb /= color.a;
+
+	color = clamp(openfl_ColorOffsetv + (color * openfl_ColorMultiplierv), 0.0, 1.0);
+	return vec4(color.rgb * color.a * openfl_Alphav, color.a * openfl_Alphav);
+}
+
+vec4 flixel_texture2D(sampler2D bitmap, vec2 coord)
+{
+	return apply_flixel_transform(texture2D(bitmap, coord));
+}")
+
+	@:glFragmentBody("gl_FragColor = flixel_texture2D(bitmap, openfl_TextureCoordv);
+if (gl_FragColor.a == 0.0) discard;")
+
+	@:glFragmentSource("#pragma header
+void main(void)
+{
+	#pragma body
+}")
+	public function new() {
 		super();
 	}
 }
